@@ -1,8 +1,10 @@
 # coding:utf-8
 __author__ = 'vliupro'
 
-import requests
 import json
+
+import pymysql
+import requests
 
 
 class Lagou:
@@ -11,13 +13,15 @@ class Lagou:
         self.__url = 'http://www.lagou.com/jobs/positionAjax.json?'
         self.__headers = {}
         self.cookies = requests.get('http://www.lagou.com').cookies
+        self.pn = 1
 
-    def getPageJson(self, key_word, page):
-        self.__makeData(key_word, page)
+    def getPageJson(self, key_word):
+        self.__makeData(key_word, self.pn)
         return requests.post(self.__url, data=self.__form_data, headers=self.__headers).json()
 
     def __makeData(self, key_word, page):
-        self.__url = self.__url + 'px=default&first=' + (page == 1 and 'true' or 'false') + '&kd=' + key_word + '&pn=' + page
+        self.__url = self.__url + 'px=default&first=' + (
+            page == 1 and 'true' or 'false') + '&kd=' + key_word + '&pn=' + str(page)
         form_data = {'first': page == 1 and 'true' or 'false',
                      'pn': page,
                      'kd': key_word}
@@ -26,14 +30,14 @@ class Lagou:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.111 Safari/537.36',
             'Host': 'www.lagou.com',
-            'Cookie' : ';'.join(['='.join(item) for item in self.cookies.items()])}
+            'Cookie': ';'.join(['='.join(item) for item in self.cookies.items()])}
         self.__headers = headers
 
 
 class Page:
-    def __init__(self, key_word, page_no):
+    def __init__(self, key_word):
         self.__key_word = key_word
-        self.__page_no = page_no
+        self.__page_no = 0
         self.current_page = 0
         self.has_next = False
         self.has_prev = False
@@ -42,9 +46,9 @@ class Page:
         self.total_page = 0
         self.jobs = []
 
-    def setPage(self):
-        lagou = Lagou()
-        json_data = lagou.getPageJson(self.__key_word, self.__page_no)['content']
+    def setPage(self, lagou):
+        self.__page_no = lagou.pn
+        json_data = lagou.getPageJson(self.__key_word)['content']
         self.current_page = int(str(json_data['currentPageNo']))
         self.has_next = json_data['hasNextPage'] == str('true')
         self.has_prev = json_data['hasPreviousPage'] == str('false')
@@ -54,11 +58,14 @@ class Page:
         result = json_data['result']
         # print(result)
         for r in result:
-            # print(r['positionName'])
+            # print(str(r['positionId']))
             self.jobs.append(Job(r))
+
 
 class Job:
     def __init__(self, jd):
+        # print(type(jd))
+        self.position_Id = str(jd['positionId'])
         self.position_name = jd['positionName']
         self.position_type = jd['positionType']
         self.salary = jd['salary']
@@ -73,12 +80,40 @@ class Job:
         self.company_labellist = jd['companyLabelList']
         self.job_nature = jd['jobNature']
         self.position_advantage = jd['positionAdvantage']
-        self.position_type = jd['positionFirstType']
+        self.position_first_type = jd['positionFirstType']
         self.create_time = jd['createTime']
+        self.__saveIntoMysql()
 
+    def __saveIntoMysql(self):
+        conn = pymysql.connect(host='127.0.0.1', port=3306, user='vliupro', passwd='liujida', db='offertest')
+        conn.set_charset('utf8')
+        cur = conn.cursor()
+        cur.execute('SET NAMES utf8;')
+        cur.execute('SET CHARACTER SET utf8;')
+        cur.execute('SET character_set_connection=utf8;')
+        savesql = str(r'insert into db_jobs(positionId,positionName,positionType,salary,education,workYear,city,companySName,companyName,companyStage,companyField,companySize,companyLabellist,nature,positionAdvantage,positionFType,createTime) values("%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s")' % (
+            self.position_Id, self.position_name, self.position_type, self.salary, self.education, self.workyear,
+            self.city,
+            self.company_short_name, self.company_name, self.company_stage, self.company_field, self.company_size, (
+                ','.join(
+                    self.company_labellist)), self.job_nature, self.position_advantage, self.position_first_type,
+            self.create_time)).encode(encoding='utf-8')
+        print(savesql)
+        # try:
+        cur.execute(savesql)
+        conn.commit()
+        # except Exception:
+        #     print('插入错误')
+        cur.close()
+        conn.close()
 
 if __name__ == '__main__':
     key = input("请输入关键词：")
-    pageno = input("请输入页：")
-    page = Page(key,pageno)
-    page.setPage()
+    lagou = Lagou()
+    page = Page(key)
+    page.setPage(lagou)
+    if page.has_next == 'true':
+        lagou.pn += 1
+        page.setPage()
+    # print(type(page.jobs[0]))
+    # print(','.join(page.jobs[0].company_labellist))
