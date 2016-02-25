@@ -3,7 +3,6 @@
 
 import requests
 import re
-import os
 
 class Huaban:
     imgPre = 'http://img.hb.aicdn.com/'
