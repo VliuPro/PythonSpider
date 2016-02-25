@@ -39,6 +39,8 @@ class Huaban:
                     fd.write(r.content)
 
     def run(self):
+        if not os.path.exists('./pic'):
+            os.mkdir('./pic')
         while True:
             groups = self.getGroups(self.max_img)
             if not groups:
