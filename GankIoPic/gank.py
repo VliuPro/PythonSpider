@@ -1,12 +1,11 @@
 # coding: utf-8
 
-import requests
-import threading
 import re
-
+import threading
 from queue import Queue
-from bs4 import BeautifulSoup
 
+import requests
+from bs4 import BeautifulSoup
 
 url_queue = Queue()
 PATH = '/home/vliupro/sourses/pic/gankio/'
@@ -29,7 +28,6 @@ class GankIo:
 
 
 class GankThread(threading.Thread):
-
     def __init__(self, url_queue):
         threading.Thread.__init__(self)
         self.url_queue = url_queue
@@ -47,8 +45,8 @@ class GankThread(threading.Thread):
         return imgurls
 
     def saveImg(self, img, name):
-        print("download: " +  name)
-        with open(PATH+name, 'wb') as f:
+        print("download: " + name)
+        with open(PATH + name, 'wb') as f:
             f.write(img)
             f.close()
 
