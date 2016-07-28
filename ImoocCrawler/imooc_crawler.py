@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 
 class ImoocCrawler:
 
-    name = 'imooc'
+    title = 'imooc'
     # 具体课程的前缀，后面加上课程代码,用来获取具体video的后缀代码
     learn_prev = 'http://www.imooc.com/learn/{}'
     # 获取video地址的url前缀，后面加上具体video的后缀代码
@@ -25,14 +25,13 @@ class ImoocCrawler:
         return requests.get(url)
 
     def parser_video_id(self, response, url):
-        result = {}
         if response == None:
             print('获取数据失败, ' + str(url))
             return None
         else:
             bs = BeautifulSoup(response.content, 'lxml')
             # 获取该页标题
-            result['title'] = bs.find_all("div", class_="hd")[0].select('h2')[0].string
+            self.title = bs.find_all("div", class_="hd")[0].select('h2')[0].string
             # 获取该页的所有video的id
             for video_li in bs.find_all('ul', class_='video'):
                 for video_a in video_li.select('a'):
@@ -51,7 +50,10 @@ class ImoocCrawler:
                   + url_json['data']['result']['name'])
 
     def download_video(self):
-        target_dir = os.path.join(self.base_dir, 'imooc')
+        imooc_dir = os.path.join(self.base_dir, 'imooc')
+        if not os.path.exists(imooc_dir):
+            os.mkdir(imooc_dir)
+        target_dir = os.path.join(imooc_dir, self.title)
         if not os.path.exists(target_dir):
             os.mkdir(target_dir)
         os.chdir(target_dir)
